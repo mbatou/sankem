@@ -2,13 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/auth";
+import { isAdminEmail, isSupabaseConfigured } from "@/lib/auth";
 
 export async function signIn(_prev: { error?: string } | undefined, formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const redirectTo = String(formData.get("redirect") ?? "/admin") || "/admin";
 
+  if (!isSupabaseConfigured()) {
+    return {
+      error:
+        "The server is not configured (missing Supabase environment variables). Set them in your hosting provider and redeploy.",
+    };
+  }
   if (!email || !password) {
     return { error: "Email and password are required." };
   }

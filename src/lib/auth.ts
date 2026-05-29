@@ -21,13 +21,25 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 /**
  * Returns the signed-in admin user, or null. Use in admin pages/actions.
  */
+export function isSupabaseConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+}
+
 export async function getAdminUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) return null;
-  return user;
+  // Don't throw a 500 when env vars are missing — treat as signed out.
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user || !isAdminEmail(user.email)) return null;
+    return user;
+  } catch {
+    return null;
+  }
 }
 
 /**
