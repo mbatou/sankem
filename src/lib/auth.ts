@@ -18,6 +18,11 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   return adminEmails().includes(email.toLowerCase());
 }
 
+/** True when at least one admin email is configured in ADMIN_EMAILS. */
+export function hasAdminAllowlist(): boolean {
+  return adminEmails().length > 0;
+}
+
 /**
  * Returns the signed-in admin user, or null. Use in admin pages/actions.
  */

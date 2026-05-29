@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail, isSupabaseConfigured } from "@/lib/auth";
+import { isAdminEmail, isSupabaseConfigured, hasAdminAllowlist } from "@/lib/auth";
 
 export async function signIn(_prev: { error?: string } | undefined, formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -17,6 +17,12 @@ export async function signIn(_prev: { error?: string } | undefined, formData: Fo
   }
   if (!email || !password) {
     return { error: "Email and password are required." };
+  }
+  if (!hasAdminAllowlist()) {
+    return {
+      error:
+        "No admin allowlist is configured. Set the ADMIN_EMAILS environment variable (and redeploy).",
+    };
   }
   if (!isAdminEmail(email)) {
     return { error: "This account is not authorized for admin access." };
