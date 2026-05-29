@@ -2,8 +2,7 @@
 
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createCheckoutSession } from "@/lib/wave/client";
-import { brand, getDeliveryZone } from "@/config/brand";
+import { getDeliveryZone } from "@/config/brand";
 
 const itemSchema = z.object({
   productId: z.string().uuid(),
@@ -24,7 +23,7 @@ const checkoutSchema = z.object({
 
 export type CheckoutInput = z.input<typeof checkoutSchema>;
 export type CheckoutResult =
-  | { ok: true; checkoutUrl: string; orderNumber: string }
+  | { ok: true; orderNumber: string }
   | { ok: false; error: string };
 
 function generateOrderNumber(): string {
@@ -152,28 +151,7 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
     return { ok: false, error: "Could not save order items. Please try again." };
   }
 
-  // ── Kick off Wave checkout ────────────────────────────────────────────────
-  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? brand.url).replace(/\/$/, "");
-  try {
-    const session = await createCheckoutSession({
-      amountXof: total,
-      successUrl: `${base}/checkout/success?order=${order.id}`,
-      errorUrl: `${base}/checkout?error=1`,
-      clientReference: order.id,
-    });
-
-    await supabase
-      .from("orders")
-      .update({ wave_payment_ref: session.id, wave_checkout_url: session.checkoutUrl })
-      .eq("id", order.id);
-
-    return { ok: true, checkoutUrl: session.checkoutUrl, orderNumber: order.order_number };
-  } catch (err) {
-    // Order stays pending; surface a friendly error.
-    console.error("Wave checkout error:", err);
-    return {
-      ok: false,
-      error: "Payment could not be started. Your order was saved as pending — please retry.",
-    };
-  }
+  // Payment on delivery: the order is placed now (status "pending" = awaiting
+  // delivery & cash payment). No online payment hand-off.
+  return { ok: true, orderNumber: order.order_number };
 }

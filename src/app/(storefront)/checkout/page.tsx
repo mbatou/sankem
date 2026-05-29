@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useBag, bagSubtotal, itemKey } from "@/lib/bag/store";
 import { formatXOF } from "@/lib/money";
 import { deliveryZones } from "@/config/brand";
 import { createCheckout, type CheckoutInput } from "@/lib/actions/checkout";
 
 export default function CheckoutPage() {
+  const router = useRouter();
   const items = useBag((s) => s.items);
   const clear = useBag((s) => s.clear);
   const [zoneId, setZoneId] = useState(deliveryZones[0]?.id ?? "");
@@ -51,9 +53,9 @@ export default function CheckoutPage() {
         setSubmitting(false);
         return;
       }
-      // Order created & Wave session ready — clear bag and hand off to Wave.
+      // Order placed (pay on delivery) — clear the bag and show confirmation.
       clear();
-      window.location.href = res.checkoutUrl;
+      router.push(`/order/${res.orderNumber}`);
     } catch {
       setError("Something went wrong. Please try again.");
       setSubmitting(false);
@@ -138,10 +140,10 @@ export default function CheckoutPage() {
           )}
 
           <button type="submit" disabled={submitting} className="btn-primary mt-2 w-full">
-            {submitting ? "Starting payment…" : `Pay with Wave · ${formatXOF(total)}`}
+            {submitting ? "Placing order…" : `Place order · ${formatXOF(total)}`}
           </button>
           <p className="text-center text-xs text-paper/40">
-            You&apos;ll be redirected to Wave to complete payment securely.
+            Payment on delivery — pay in cash when your order arrives.
           </p>
         </form>
 

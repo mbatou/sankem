@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Order confirmation", robots: { index
 export const dynamic = "force-dynamic";
 
 const statusLabel: Record<string, string> = {
-  pending: "Payment pending",
+  pending: "Order received — pay on delivery",
   paid: "Paid — thank you",
   fulfilled: "Fulfilled",
   cancelled: "Cancelled",
@@ -84,6 +84,13 @@ export default async function OrderPage({
       {(address.address_line || address.city) && (
         <p className="mt-6 text-sm text-paper/50">
           Delivering to: {[address.address_line, address.city].filter(Boolean).join(", ")}
+        </p>
+      )}
+
+      {order.status === "pending" && (
+        <p className="mt-6 text-sm text-paper/60">
+          We&apos;ll contact you on {order.customer_name.split(" ")[0]}&apos;s phone to arrange
+          delivery. Please have {formatXOF(order.total_xof)} ready to pay in cash on arrival.
         </p>
       )}
 
