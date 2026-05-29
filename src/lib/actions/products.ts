@@ -199,6 +199,35 @@ export async function addProductImage(productId: string, formData: FormData) {
   return { ok: true as const, image: data };
 }
 
+/**
+ * Record an image that was already uploaded to Storage directly from the
+ * browser (avoids the Server Action / serverless request body-size limits).
+ * Only the small path string crosses the wire here.
+ */
+export async function registerProductImage(productId: string, storagePath: string, alt = "") {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  if (!storagePath || !storagePath.startsWith(`${productId}/`)) {
+    return { ok: false as const, error: "Invalid storage path" };
+  }
+
+  const { count } = await supabase
+    .from("product_images")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", productId);
+
+  const { data, error } = await supabase
+    .from("product_images")
+    .insert({ product_id: productId, storage_path: storagePath, alt, position: count ?? 0 })
+    .select("*")
+    .single();
+  if (error) return { ok: false as const, error: error.message };
+
+  revalidateAll(productId);
+  return { ok: true as const, image: data };
+}
+
 export async function deleteProductImage(imageId: string) {
   await requireAdmin();
   const supabase = await createClient();

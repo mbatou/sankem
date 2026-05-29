@@ -3,11 +3,13 @@
 import { useRef, useState, useTransition } from "react";
 import NextImage from "next/image";
 import {
-  addProductImage,
+  registerProductImage,
   deleteProductImage,
   reorderProductImages,
   updateImageAlt,
 } from "@/lib/actions/products";
+import { createClient } from "@/lib/supabase/client";
+import { PRODUCT_BUCKET } from "@/lib/images";
 import type { ProductImageRow } from "@/lib/types/database";
 
 type ImageWithUrl = ProductImageRow & { url: string };
@@ -30,18 +32,42 @@ export function ImageManager({
   async function uploadFiles(files: FileList | File[]) {
     setError(null);
     setUploading(true);
+    const supabase = createClient();
     try {
       for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) continue;
-        const fd = new FormData();
-        fd.set("file", file);
-        const res = await addProductImage(productId, fd);
+        if (!file.type.startsWith("image/")) {
+          setError("Only image files are allowed.");
+          continue;
+        }
+        if (file.size > 25 * 1024 * 1024) {
+          setError(`"${file.name}" is larger than 25 MB.`);
+          continue;
+        }
+
+        // Upload the file straight to Supabase Storage (authenticated as the
+        // admin; storage RLS allows the insert). Only the path goes to the
+        // Server Action afterwards, so we never hit the request body limit.
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const path = `${productId}/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from(PRODUCT_BUCKET)
+          .upload(path, file, { contentType: file.type || undefined, upsert: false });
+        if (upErr) {
+          setError(upErr.message);
+          continue;
+        }
+
+        const res = await registerProductImage(productId, path);
         if (res.ok && res.image) {
-          setImages((prev) => [...prev, { ...res.image, url: res.image.storage_path ? urlFor(res.image.storage_path) : "" }]);
+          setImages((prev) => [...prev, { ...res.image, url: urlFor(res.image.storage_path) }]);
         } else if (!res.ok) {
+          // DB record failed — clean up the orphaned upload.
+          await supabase.storage.from(PRODUCT_BUCKET).remove([path]);
           setError(res.error);
         }
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
