@@ -19,7 +19,9 @@ const nextConfig = {
     ],
   },
   experimental: {
-    // Server Actions are enabled by default in Next 15; kept explicit for clarity.
+    // Wrap client-side route navigations in document.startViewTransition so the
+    // ::view-transition CSS in globals.css (and product image morphs) take effect.
+    viewTransition: true,
   },
 };
 
